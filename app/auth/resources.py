@@ -15,7 +15,6 @@ def jwt_required(f):
         auth_header = request.headers.get("Authorization")
         if not auth_header:
             return {"error": "Missing Authorization header"}, 401
-
         try:
             token = auth_header.split(" ")[1] # Bearer <token>
             payload = jwt.decode(
@@ -24,8 +23,10 @@ def jwt_required(f):
                 algorithms=["HS256"]
             )
             g.user_id = payload["user_id"]
-        except (jwt.InvalidTokenError, IndexError):
-            return {"error": "Invalid token"}, 401
+        except (jwt.InvalidTokenError, jwt.ExpiredSignatureError) as e:
+            return {"error": str(e)}, 401
+        except IndexError:
+            return {"error": "Invalid Authorization header format"}, 401
 
         return f(*args, **kwargs)
     return decorated
@@ -39,7 +40,7 @@ class LoginResource(Resource):
         try:
             # verify google oauth token
             idinfo = id_token.verify_oauth2_token(
-                args["credentials"],
+                args["credential"],
                 google_requests.Request(),
                 current_app.config["GOOGLE_CLIENT_ID"]
             )
@@ -51,11 +52,14 @@ class LoginResource(Resource):
             username = email.split("@")[0]
             user = User.create_or_update(google_id, username)
 
+            # create expiration time
+            exp = datetime.now(timezone.utc) + timedelta(days=1)
+
             # create JWT
             jwt_token = jwt.encode(
                 {
                     "user_id": user.id,
-                    "exp": lambda: datetime.now(timezone.utc) + timedelta(days=1)
+                    "exp": exp.timestamp()
                 },
                 current_app.config["SECRET_KEY"],
                 algorithm="HS256"
