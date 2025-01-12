@@ -1,3 +1,4 @@
+# app/auth/resources.py
 from flask_restful import Resource, reqparse
 from flask import current_app, request, g
 from app.models.user import User
