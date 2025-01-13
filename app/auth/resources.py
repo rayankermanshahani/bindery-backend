@@ -2,7 +2,6 @@
 from flask_restful import Resource, reqparse
 from flask import current_app, request, g
 from app.models.user import User
-from app.extensions import db
 from functools import wraps
 import jwt
 from datetime import datetime, timezone, timedelta
@@ -48,9 +47,8 @@ class LoginResource(Resource):
             # get user info from token
             google_id = idinfo["sub"]
             email = idinfo["email"]
-            # use email as initial username (can be changed later)
-            username = email.split("@")[0]
-            user = User.create_or_update(google_id, username)
+            default_username = email.split("@")[0] # email handle is initial username (can be changed later)
+            user = User.create_or_update(google_id, default_username)
 
             # create expiration time
             exp = datetime.now(timezone.utc) + timedelta(days=1)
@@ -69,11 +67,10 @@ class LoginResource(Resource):
                 "token": jwt_token,
                 "user_id": user.id,
                 "username": user.username,
+                "created_at": user.created_at.isoformat()
             }
-
         except ValueError as e:
-            # invalid token
-            return {"error": "Invalid token"}, 401
+            return {"error": "Invalid token"}, 401 # invalid token
         except Exception as e:
             return {"error": str(e)}, 400
 
@@ -111,8 +108,9 @@ class UserProfileResource(Resource):
         if not user:
             return {"error": "User not found"}, 404
 
-        user.username = args["username"]
-        db.session.commit()
+        try: user.update_username(args["username"])
+        except AttributeError as e: return {"error": str(e)}, 400
+        except Exception as e: return {"error": "Failed to update username"}, 500
 
         return {
             "id": user.id,
