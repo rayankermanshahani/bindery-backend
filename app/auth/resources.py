@@ -2,11 +2,10 @@
 from flask_restful import Resource, reqparse
 from flask import current_app, request, g
 from app.models.user import User
-from app.extensions import api, db
+from app.extensions import db
 from functools import wraps
 import jwt
 from datetime import datetime, timezone, timedelta
-import requests
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
@@ -101,9 +100,9 @@ class UserProfileResource(Resource):
 
         # validate username
         if len(args["username"]) < 3 or len(args["username"]) >= 49:
-            return {"error": "Username must be between between 3 and 49 characters"}, 400
+            return {"error": "Username must be between 3 and 49 characters"}, 400
 
-        # check username availabiliy
+        # check username availability
         existing_user = User.query.filter_by(username=args["username"]).first()
         if existing_user and existing_user.id != g.user_id:
             return {"error": "Username already taken"}, 400
@@ -120,3 +119,4 @@ class UserProfileResource(Resource):
             "username": user.username,
             "created_at": user.created_at.isoformat()
         }
+
