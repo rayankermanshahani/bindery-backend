@@ -9,7 +9,8 @@ from .clubs.resources import (
     ClubResource,
     ClubJoinResource,
     ClubLeaveResource,
-    ClubBanResource
+    ClubBanResource,
+    ClubMembersResource
 )
 
 def create_app(config_class=Config):
@@ -37,6 +38,7 @@ def create_app(config_class=Config):
     api.add_resource(ClubJoinResource, "/clubs/<string:unique_id>/join")
     api.add_resource(ClubLeaveResource, "/clubs/<string:unique_id>/leave")
     api.add_resource(ClubBanResource, "/clubs/<string:unique_id>/ban")
+    api.add_resource(ClubMembersResource, "/clubs/<string:unique_id>/members")
 
     api.init_app(app)
 

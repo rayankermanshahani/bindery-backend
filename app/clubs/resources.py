@@ -129,7 +129,7 @@ class ClubJoinResource(Resource):
 class ClubLeaveResource(Resource):
     @jwt_required
     @get_club
-    def post(self, unique_id):
+    def post(self, unique_id: str):
         """
         user leaves a club they are in
         """
@@ -152,7 +152,7 @@ class ClubLeaveResource(Resource):
 class ClubBanResource(Resource):
     @jwt_required
     @get_club
-    def post(self, unique_id):
+    def post(self, unique_id: str):
         """
         ban a user from a club (creator-only)
         request json body: { "user_id": <int> }
@@ -186,7 +186,42 @@ class ClubBanResource(Resource):
 
         return {"message": f"User {target_user_id} has been banned from club {g.club.unique_id}"}, 200
 
+class ClubMembersResource(Resource):
+    @jwt_required
+    @get_club
+    def get(self, unique_id: str):
+        """ 
+        list non banned members of this club
+        """
+        # check membership validity
+        membership = ClubMembership.query.filter_by(
+            club_id=g.club.id, 
+            user_id=g.user_id
+        ).first()
 
+        if not membership or membership.is_banned:
+            return {"error": "You are not a member of this club or you are banned"}, 403
+
+        # fetch memberships 
+        memberships = ClubMembership.query.filter_by(
+            club_id=g.club.id, 
+            is_banned=False
+        ).all()
+
+        # compile user info
+        members_data = []
+        for m in memberships:
+            user = User.query.get(m.user_id)
+            if user:
+                members_data.append({
+                    "id": user.id,
+                    "username": user.username,
+                })
+
+        return {
+            "creator_id": g.club.creator_id,
+            "members": members_data
+        }, 200
 
 
 
