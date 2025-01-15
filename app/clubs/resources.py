@@ -36,6 +36,7 @@ class ClubsListResource(Resource):
         return [{
             "unique_id": club.unique_id,
             "creator_id": club.creator_id,
+            "name": club.name,
             "created_at": club.created_at.isoformat()
         } for club in clubs], 200
 
@@ -44,8 +45,12 @@ class ClubsListResource(Resource):
         """
         create a new club. the user becomes the club creator and is automatically joined
         """
+        parser = reqparse.RequestParser()
+        parser.add_argument("name", type=str, required=True, help="Club name is required")
+        args = parser.parse_args()
+
         # create the club
-        new_club = Club(creator_id=g.user_id)
+        new_club = Club(creator_id=g.user_id, name=args["name"])
         db.session.add(new_club)
         db.session.commit()
 
@@ -75,9 +80,12 @@ class ClubResource(Resource):
         if not membership or membership.is_banned:
             return {"error": "You are not a member of this club or you are banned"}, 403
 
+        creator = User.query.get(g.club.creator_id)
+
         return {
             "unique_id": g.club.unique_id,
-            "creator_id": g.club.creator_id,
+            "creator_username": creator.username if creator else None,
+            "name": g.club.name,
             "created_at": g.club.created_at.isoformat(),
         }, 200
 
@@ -223,5 +231,17 @@ class ClubMembersResource(Resource):
             "members": members_data
         }, 200
 
+class ClubsCreatedResource(Resource):
+    @jwt_required
+    def get(self):
+        """
+        return a list of clubs that the current user created
+        """
+        clubs = Club.query.filter_by(creator_id=g.user_id).all()
 
-
+        return [{
+            "unique_id": club.unique_id,
+            "creator_id": club.creator_id ,
+            "name": club.name,
+            "created_at": club.created_at.isoformat()
+        } for club in clubs], 200

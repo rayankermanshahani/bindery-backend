@@ -6,6 +6,7 @@ from .extensions import db, migrate, api
 from .auth.resources import (LoginResource, UserProfileResource)
 from .clubs.resources import (
     ClubsListResource,
+    ClubsCreatedResource,
     ClubResource,
     ClubJoinResource,
     ClubLeaveResource,
@@ -34,6 +35,7 @@ def create_app(config_class=Config):
 
     # club resources
     api.add_resource(ClubsListResource, "/clubs")  # GET (list), POST (create)
+    api.add_resource(ClubsCreatedResource, "/clubs/created")
     api.add_resource(ClubResource, "/clubs/<string:unique_id>")  # GET (detail), DELETE (delete)
     api.add_resource(ClubJoinResource, "/clubs/<string:unique_id>/join")
     api.add_resource(ClubLeaveResource, "/clubs/<string:unique_id>/leave")

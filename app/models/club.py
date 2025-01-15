@@ -20,11 +20,13 @@ class Club(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     unique_id = db.Column(db.String(10), unique=True, nullable=False)
     creator_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    name = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
-    def __init__(self, creator_id: int):
+    def __init__(self, creator_id: int, name: str):
         self.creator_id = creator_id
         self.unique_id = generate_uid()
+        self.name = name
 
     def __repr__(self) -> str:
-        return f"<Club {self.unique_id} (creator={self.creator_id})>"
+        return f"<Club {self.unique_id} (creator={self.creator_id}) name={self.name}>"
