@@ -7,6 +7,7 @@ from app.auth.resources import jwt_required
 from app.models.user import User
 from app.models.club import Club
 from app.models.club_membership import ClubMembership
+from app.models.book import Book
 
 def get_club(f):
     """ 
@@ -245,3 +246,59 @@ class ClubsCreatedResource(Resource):
             "name": club.name,
             "created_at": club.created_at.isoformat()
         } for club in clubs], 200
+
+class ClubBooksResource(Resource):
+    @jwt_required
+    @get_club
+    def post(self, unique_id: str):
+        """
+        add a new book to the club (creator-only)
+        """
+        if g.club.creator_id != g.user_id:
+            return {"error": "Only the creator can add books to this club"}, 403
+
+        parser = reqparse.RequestParser()
+        parser.add_argument("title", required=True, help="Title is required")
+        parser.add_argument("author", required=True, help="Author is required")
+        args = parser.parse_args()
+
+        new_book = Book(
+            club_id=g.club.id,
+            title=args["title"],
+            author=args["author"]
+        )
+        db.session.add(new_book)
+        db.session.commit()
+
+        return {
+            "id": new_book.id,
+            "title": new_book.title,
+            "author": new_book.author,
+            "added_at": new_book.added_at.isoformat(),
+        }, 201
+
+
+    @jwt_required
+    @get_club
+    def get(self, unique_id: str):
+        """
+        list all books in the club
+        """
+
+        membership = ClubMembership.query.filter_by(
+            club_id=g.club.id,
+            user_id=g.user.id,
+            is_banned=False
+        ).first()
+
+        if not membership or membership.is_banned:
+            return {"error": "You are not an active member of this club"}, 403
+
+        books = Book.query.filter_by(club_id=g.club.id).order_by(Book.added_at.asc()).all()
+
+        return [{
+            "id": book.id,
+            "title": book.title,
+            "author": book.author,
+            "added_at": book.added_at.isoformat()
+        } for book in books], 200
