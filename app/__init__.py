@@ -2,7 +2,7 @@
 from flask import Flask
 from flask_cors import CORS
 from .config import Config
-from .extensions import db, migrate, api
+from .extensions import db, migrate, api, socketio
 from .auth.resources import (LoginResource, UserProfileResource)
 from .clubs.resources import (
     ClubsListResource,
@@ -11,8 +11,10 @@ from .clubs.resources import (
     ClubJoinResource,
     ClubLeaveResource,
     ClubBanResource,
-    ClubMembersResource
+    ClubMembersResource,
+    ClubBooksResource
 )
+from .messages.resources import MessageResource
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -28,6 +30,7 @@ def create_app(config_class=Config):
     # initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
+    socketio.init_app(app, cors_allowed_origins="*")
 
     # auth resources
     api.add_resource(LoginResource, "/auth/login")
@@ -41,6 +44,10 @@ def create_app(config_class=Config):
     api.add_resource(ClubLeaveResource, "/clubs/<string:unique_id>/leave")
     api.add_resource(ClubBanResource, "/clubs/<string:unique_id>/ban")
     api.add_resource(ClubMembersResource, "/clubs/<string:unique_id>/members")
+
+    # book resources
+    api.add_resource(ClubBooksResource, "/clubs/<string:unique_id>/books")
+    api.add_resource(MessageResource, "/books/<int:book_id>/messages")
 
     api.init_app(app)
 
