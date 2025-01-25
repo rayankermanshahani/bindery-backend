@@ -10,7 +10,6 @@ from app.models.club_membership import ClubMembership
 def authenticate_socket_conn(token: str):
     """
     decode JWT from client and return user_id if valid, else None.
-    raise exception or return None if invalid.
     """
 
     try:
@@ -23,17 +22,23 @@ def authenticate_socket_conn(token: str):
     except Exception:
         return None
 
+def emit_error(sid, message, code=400):
+    """
+    helper to send standardized error messages
+    """
+    socketio.emit("error", {"code": code, "message": message}, to=sid)
+
 @socketio.on("connect")
 def handle_conn():
     """
-    handle new WebSocket connection, allowed by default but do not
-    join any rooms until client emits a `join_book` event.
+    handle new WebSocket connection
     """
     # handshake token check
     token = request.args.get("token")
     if token:
         user_id = authenticate_socket_conn(token)
         if not user_id:
+            emit_error(request.sid, "Missing authentication token", 401)
             disconnect()
     print("Socket connected")
 
@@ -47,57 +52,61 @@ def handle_disconnect():
 @socketio.on("join_book")
 def handle_join_book(data):
     """
-    custom event client can emit to join a room for a particular
-    book's discussoin.
-
-    data format example: {"token": "...", "book_id": 123} 
+    handle joining a book discussion room
     """
-
     token = data.get("token")
     book_id = data.get("book_id")
+    sid = request.sid
 
     if not token or not book_id:
-        return # TODO: emit error event
+        emit_error(sid, "Missing token or book_id", 400)
+        return
 
     user_id = authenticate_socket_conn(token)
     if not user_id:
-        return # TODO: emit error event or forcibly disconnect
+        emit_error(sid, "Authentication failed", 401)
+        return
 
-    # check membership
+    # validate book existence
     book = Book.query.get(book_id)
     if not book:
-        return # book does not exist
+        emit_error(sid, "Book not found", 404)
+        return
 
+    # check club membership status
     membership = ClubMembership.query.filter_by(
         club_id=book.club_id,
         user_id=user_id,
         is_banned=False
     ).first()
 
-    if not membership:  
-        return # TODO: emit error event
+    if not membership:
+        emit_error(sid, "Not a member or banned from club", 403)
+        return
 
+    # success
     join_room(f"book_{book_id}")
     print(f"User {user_id} joined room book_{book_id}")
-
-    # emit a "joined_room" event back to user
-    socketio.emit("joined_room", {f"book_{book_id}"}, to=request.sid)
+    socketio.emit("joined_room", {"room": f"book_{book_id}"}, to=sid)
 
 @socketio.on("leave_book")
 def handle_leave_book(data):
     """
-    let users explicitly leave the room for a book discussion.
-    client can emit: {"token": "...", "book_id": 123}
+    handle leaving a book discussion room
     """
     token = data.get("token")
     book_id = data.get("book_id")
+    sid = request.sid
 
     if not token or not book_id:
-        return # TODO: emit error event
+        emit_error(sid, "Missing token or book_id", 400)
+        return
 
     user_id = authenticate_socket_conn(token)
     if not user_id:
-        return # TODO: emit error event
+        emit_error(sid, "Authentication failed", 401)
+        return
 
     leave_room(f"book_{book_id}")
     print(f"User {user_id} left room book_{book_id}")
+    socketio.emit("left_room", {"room": f"book_{book_id}"}, to=sid)
