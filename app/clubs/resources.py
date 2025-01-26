@@ -287,7 +287,7 @@ class ClubBooksResource(Resource):
 
         membership = ClubMembership.query.filter_by(
             club_id=g.club.id,
-            user_id=g.user.id,
+            user_id=g.user_id,
             is_banned=False
         ).first()
 
